@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Conduite - Permis B</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        #gameCanvas {
+            background: #87CEEB;
+            border: 2px solid #333;
+            display: block;
+            margin: 0 auto;
+        }
+
+        #controls {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+            background: #2d2d44;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pedal-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pedal-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #aaa;
+        }
+
+        .pedal-bar {
+            width: 40px;
+            height: 80px;
+            background: #1a1a2e;
+            border: 2px solid #555;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pedal-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            transition: height 0.05s;
+        }
+
+        .pedal-fill.embrayage { background: #4a90d9; }
+        .pedal-fill.frein { background: #d94a4a; }
+        .pedal-fill.accelerateur { background: #4ad94a; }
+
+        .pedal-keys {
+            display: flex;
+            gap: 3px;
+        }
+
+        .key {
+            width: 28px;
+            height: 28px;
+            background: #3a3a5a;
+            border: 2px solid #555;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.1s;
+        }
+
+        .key.active {
+            transform: translateY(2px);
+            border-color: #fff;
+        }
+
+        .key.active.embrayage { background: #4a90d9; }
+        .key.active.frein { background: #d94a4a; }
+        .key.active.accelerateur { background: #4ad94a; }
+
+        #dashboard {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 15px;
+            background: linear-gradient(180deg, #3d2817 0%, #2a1a0f 100%);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .gauge {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .gauge canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #gearDisplay {
+            width: 60px;
+            height: 80px;
+            background: #111;
+            border: 3px solid #444;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        #indicators {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .indicator {
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .indicator.on { opacity: 1; }
+        .indicator.off { opacity: 0.3; }
+
+        #handbrake { background: #4ad94a; color: #000; }
+        #engine { background: #d94a4a; }
+        #stalled { background: #ff0; color: #000; display: none; }
+
+        #gearButtons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #gearButtons button {
+            padding: 8px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #3a3a5a;
+            color: white;
+            transition: all 0.1s;
+        }
+
+        #gearButtons button:hover {
+            background: #4a4a7a;
+        }
+
+        #gearButtons button:active {
+            transform: scale(0.95);
+        }
+
+        #tutorial {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 400px;
+            background: rgba(30, 30, 50, 0.95);
+            border: 2px solid #4a90d9;
+            border-radius: 10px;
+            padding: 20px;
+            z-index: 100;
+        }
+
+        #tutorial h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        #tutorial p {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        #tutorial .step {
+            color: #888;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+
+        #tutorial button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #4a90d9;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #tutorial button:hover {
+            background: #5aa0e9;
+        }
+
+        #toggleTutorial {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background: #4a90d9;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        #helpPanel {
+            position: absolute;
+            bottom: 200px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 11px;
+        }
+
+        #helpPanel div {
+            margin: 3px 0;
+        }
+
+        .highlight {
+            color: #4ad94a;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="gameCanvas" width="1280" height="400"></canvas>
+
+        <div id="dashboard">
+            <div class="gauge">
+                <canvas id="speedGauge" width="120" height="120"></canvas>
+            </div>
+
+            <div class="gauge">
+                <canvas id="rpmGauge" width="120" height="120"></canvas>
+            </div>
+
+            <div id="gearDisplay">N</div>
+
+            <div id="indicators">
+                <div id="handbrake" class="indicator on">P - FREIN MAIN</div>
+                <div id="engine" class="indicator off">MOTEUR</div>
+                <div id="stalled" class="indicator">CALÉ !</div>
+            </div>
+
+            <div id="gearButtons">
+                <button onclick="changeGear(-1)">R - Marche AR</button>
+                <button onclick="changeGear(0)">N - Point Mort</button>
+                <button onclick="changeGear(1)">1ère</button>
+                <button onclick="changeGear(2)">2ème</button>
+                <button onclick="changeGear(3)">3ème</button>
+                <button onclick="changeGear(4)">4ème</button>
+                <button onclick="changeGear(5)">5ème</button>
+            </div>
+        </div>
+
+        <div id="controls">
+            <div class="pedal-group">
+                <div class="pedal-label">EMBRAYAGE</div>
+                <div class="pedal-bar">
+                    <div class="pedal-fill embrayage" id="clutchFill"></div>
+                </div>
+                <div class="pedal-keys">
+                    <div class="key embrayage" id="keyA">A</div>
+                    <div class="key embrayage" id="keyZ">Z</div>
+                    <div class="key embrayage" id="keyE">E</div>
+                    <div class="key embrayage" id="keyR">R</div>
+                </div>
+            </div>
+
+            <div class="pedal-group">
+                <div class="pedal-label">FREIN</div>
+                <div class="pedal-bar">
+                    <div class="pedal-fill frein" id="brakeFill"></div>
+                </div>
+                <div class="pedal-keys">
+                    <div class="key frein" id="keyQ">Q</div>
+                    <div class="key frein" id="keyS">S</div>
+                    <div class="key frein" id="keyD">D</div>
+                    <div class="key frein" id="keyF">F</div>
+                </div>
+            </div>
+
+            <div class="pedal-group">
+                <div class="pedal-label">ACCÉLÉRATEUR</div>
+                <div class="pedal-bar">
+                    <div class="pedal-fill accelerateur" id="gasFill"></div>
+                </div>
+                <div class="pedal-keys">
+                    <div class="key accelerateur" id="keyW">W</div>
+                    <div class="key accelerateur" id="keyX">X</div>
+                    <div class="key accelerateur" id="keyC">C</div>
+                    <div class="key accelerateur" id="keyV">V</div>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                <button onclick="toggleEngine()" style="padding: 15px 25px; font-size: 16px; background: #d94a4a; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    DÉMARRER (Entrée)
+                </button>
+                <button onclick="toggleHandbrake()" style="padding: 10px 20px; font-size: 14px; background: #4ad94a; border: none; border-radius: 8px; color: black; font-weight: bold; cursor: pointer;">
+                    FREIN MAIN (Espace)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tutorial">
+        <h2 id="tutorialTitle">Bienvenue au Simulateur de Conduite !</h2>
+        <div id="tutorialContent">
+            <p>Apprenez à conduire une voiture manuelle française.</p>
+            <p><strong>Contrôles des pédales (progressifs) :</strong></p>
+            <p>- Embrayage : <span class="highlight">A, Z, E, R</span> (maintenir les précédentes)</p>
+            <p>- Frein : <span class="highlight">Q, S, D, F</span></p>
+            <p>- Accélérateur : <span class="highlight">W, X, C, V</span></p>
+            <p>- Direction : <span class="highlight">← →</span> flèches</p>
+        </div>
+        <div class="step" id="tutorialStep">Étape 1/7</div>
+        <button onclick="nextTutorialStep()">Continuer</button>
+    </div>
+
+    <button id="toggleTutorial" onclick="toggleTutorial()">T - Tutoriel</button>
+
+    <div id="helpPanel">
+        <div><strong>Raccourcis clavier :</strong></div>
+        <div>Entrée : Démarrer/Couper moteur</div>
+        <div>Espace : Frein à main</div>
+        <div>Pavé num 0-5 : Vitesses</div>
+        <div>N : Marche arrière</div>
+        <div>← → : Direction</div>
+        <div>T : Tutoriel</div>
+    </div>
+
+    <script>
+        // === CONFIGURATION ===
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // === ÉTAT DU VÉHICULE ===
+        const car = {
+            engineOn: false,
+            speed: 0,
+            rpm: 0,
+            gear: 0, // 0 = point mort, 1-5 = vitesses, -1 = marche arrière
+            clutch: 0, // 0-4
+            brake: 0, // 0-4
+            gas: 0, // 0-4
+            direction: 0, // -1, 0, 1
+            handbrake: true,
+            stalled: false,
+            roadPosition: 0,
+            lateralPosition: 0,
+
+            maxSpeedByGear: {
+                '-1': 20,
+                '1': 30,
+                '2': 50,
+                '3': 70,
+                '4': 100,
+                '5': 130
+            }
+        };
+
+        // === TOUCHES PRESSÉES ===
+        const keys = {};
+
+        // === TUTORIEL ===
+        const tutorialSteps = [
+            {
+                title: "Bienvenue au Simulateur de Conduite !",
+                content: `
+                    <p>Apprenez à conduire une voiture manuelle française.</p>
+                    <p><strong>Contrôles des pédales (progressifs) :</strong></p>
+                    <p>- Embrayage : <span class="highlight">A, Z, E, R</span></p>
+                    <p>- Frein : <span class="highlight">Q, S, D, F</span></p>
+                    <p>- Accélérateur : <span class="highlight">W, X, C, V</span></p>
+                    <p>- Vitesses : <span class="highlight">Cliquez ou Pavé numérique</span></p>
+                `,
+                condition: () => true
+            },
+            {
+                title: "Étape 1 : Vérifications avant démarrage",
+                content: `
+                    <p>Avant de démarrer, vérifiez :</p>
+                    <p>1. Le frein à main est <span class="highlight">serré</span> (voyant vert)</p>
+                    <p>2. Vous êtes au <span class="highlight">point mort</span> (N)</p>
+                    <p><em>Le frein à main protège la voiture.</em></p>
+                `,
+                condition: () => car.handbrake && car.gear === 0
+            },
+            {
+                title: "Étape 2 : Démarrer le moteur",
+                content: `
+                    <p>Pour démarrer le moteur :</p>
+                    <p>Cliquez sur <span class="highlight">DÉMARRER</span> ou appuyez sur <span class="highlight">Entrée</span></p>
+                    <p><em>Astuce : Sur une voiture moderne, vous pouvez démarrer au point mort sans embrayage.</em></p>
+                `,
+                condition: () => car.engineOn
+            },
+            {
+                title: "Étape 3 : Engager la première",
+                content: `
+                    <p>Maintenant :</p>
+                    <p>1. Enfoncez l'embrayage <span class="highlight">A+Z+E</span> (minimum)</p>
+                    <p>2. Cliquez sur <span class="highlight">1ère</span> ou pavé num <span class="highlight">1</span></p>
+                    <p><em>L'indicateur passera de N à 1.</em></p>
+                `,
+                condition: () => car.gear === 1
+            },
+            {
+                title: "Étape 4 : Desserrer le frein à main",
+                content: `
+                    <p>Parfait ! Première engagée.</p>
+                    <p>Cliquez sur <span class="highlight">FREIN MAIN</span> ou appuyez sur <span class="highlight">Espace</span></p>
+                    <p><em>Gardez l'embrayage enfoncé !</em></p>
+                `,
+                condition: () => !car.handbrake
+            },
+            {
+                title: "Étape 5 : Démarrer en douceur",
+                content: `
+                    <p>Le moment délicat !</p>
+                    <p>1. Accélérez légèrement avec <span class="highlight">W</span></p>
+                    <p>2. Relâchez <span class="highlight">doucement</span> l'embrayage (lâchez R, puis E, puis Z...)</p>
+                    <p><em>Si vous calez, recommencez ! Objectif : 10 km/h</em></p>
+                `,
+                condition: () => car.speed >= 10
+            },
+            {
+                title: "Bravo ! Vous roulez !",
+                content: `
+                    <p>Félicitations !</p>
+                    <p>Continuez à pratiquer :</p>
+                    <p>- Passez la 2ème vers 20 km/h</p>
+                    <p>- Utilisez les flèches pour tourner</p>
+                    <p>- Freinez avec Q, S, D, F</p>
+                    <p><strong>Bonne route !</strong></p>
+                `,
+                condition: () => true
+            }
+        ];
+
+        let currentTutorialStep = 0;
+        let tutorialVisible = true;
+
+        // === GESTION DES TOUCHES ===
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = true;
+            keys[e.code] = true;
+
+            // Actions ponctuelles
+            if (e.key === 'Enter') {
+                toggleEngine();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                toggleHandbrake();
+            } else if (key === 't') {
+                toggleTutorial();
+            }
+
+            // Vitesses - Pavé numérique
+            if (e.code === 'Numpad0') changeGear(0);
+            else if (e.code === 'Numpad1') changeGear(1);
+            else if (e.code === 'Numpad2') changeGear(2);
+            else if (e.code === 'Numpad3') changeGear(3);
+            else if (e.code === 'Numpad4') changeGear(4);
+            else if (e.code === 'Numpad5') changeGear(5);
+
+            // Vitesses - Touches du haut (avec ou sans shift selon le clavier)
+            else if (e.code === 'Digit0' || key === 'à') changeGear(0);
+            else if (e.code === 'Digit1' || key === '&') changeGear(1);
+            else if (e.code === 'Digit2' || key === 'é') changeGear(2);
+            else if (e.code === 'Digit3' || key === '"') changeGear(3);
+            else if (e.code === 'Digit4' || key === "'") changeGear(4);
+            else if (e.code === 'Digit5' || key === '(') changeGear(5);
+
+            // Marche arrière
+            else if (key === 'n') changeGear(-1);
+
+            updatePedalInputs();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = false;
+            keys[e.code] = false;
+            updatePedalInputs();
+        });
+
+        // === FONCTIONS DE CONTRÔLE ===
+        function updatePedalInputs() {
+            // Embrayage (A, Z, E, R) - progressif
+            car.clutch = 0;
+            if (keys['a']) {
+                car.clutch = 1;
+                if (keys['z']) {
+                    car.clutch = 2;
+                    if (keys['e']) {
+                        car.clutch = 3;
+                        if (keys['r']) {
+                            car.clutch = 4;
+                        }
+                    }
+                }
+            }
+
+            // Frein (Q, S, D, F) - progressif
+            car.brake = 0;
+            if (keys['q']) {
+                car.brake = 1;
+                if (keys['s']) {
+                    car.brake = 2;
+                    if (keys['d']) {
+                        car.brake = 3;
+                        if (keys['f']) {
+                            car.brake = 4;
+                        }
+                    }
+                }
+            }
+
+            // Accélérateur (W, X, C, V) - progressif
+            car.gas = 0;
+            if (keys['w']) {
+                car.gas = 1;
+                if (keys['x']) {
+                    car.gas = 2;
+                    if (keys['c']) {
+                        car.gas = 3;
+                        if (keys['v']) {
+                            car.gas = 4;
+                        }
+                    }
+                }
+            }
+
+            // Direction
+            car.direction = 0;
+            if (keys['ArrowLeft']) car.direction = -1;
+            else if (keys['ArrowRight']) car.direction = 1;
+
+            updatePedalDisplay();
+        }
+
+        function toggleEngine() {
+            if (car.engineOn) {
+                car.engineOn = false;
+                car.rpm = 0;
+            } else {
+                // Démarrage moderne : possible sans embrayage SI au point mort
+                if (car.gear === 0 || car.clutch >= 3) {
+                    car.engineOn = true;
+                    car.stalled = false;
+                    car.rpm = 800;
+                }
+            }
+            updateIndicators();
+        }
+
+        function toggleHandbrake() {
+            car.handbrake = !car.handbrake;
+            updateIndicators();
+            checkTutorialProgress();
+        }
+
+        function changeGear(newGear) {
+            // Besoin de l'embrayage pour changer de vitesse (sauf point mort)
+            if (car.clutch >= 3 || (newGear === 0 && car.speed < 5)) {
+                car.gear = newGear;
+                updateGearDisplay();
+                checkTutorialProgress();
+            }
+        }
+
+        // === MISE À JOUR DU VÉHICULE ===
+        function updateCar(dt) {
+            if (!car.engineOn) {
+                car.rpm = 0;
+                return;
+            }
+
+            // Calcul du régime moteur
+            let targetRpm;
+            if (car.gear === 0) {
+                // Point mort : régime dépend uniquement de l'accélérateur
+                targetRpm = 800 + (car.gas * 1500);
+            } else {
+                // En prise
+                const maxSpeed = car.maxSpeedByGear[car.gear] || 30;
+                const baseRpm = 800 + (Math.abs(car.speed) / maxSpeed) * 5200;
+
+                if (car.clutch >= 3) {
+                    // Embrayage enfoncé
+                    targetRpm = 800 + (car.gas * 1500);
+                } else {
+                    targetRpm = baseRpm + (car.gas * 500);
+                }
+            }
+
+            // Transition douce du régime
+            car.rpm += (targetRpm - car.rpm) * dt * 3;
+            car.rpm = Math.max(0, Math.min(7000, car.rpm));
+
+            // Détection du calage
+            if (car.gear !== 0 && car.clutch < 2) {
+                if (car.rpm < 500 && Math.abs(car.speed) < 5) {
+                    car.stalled = true;
+                    car.engineOn = false;
+                    car.rpm = 0;
+                    updateIndicators();
+                }
+            }
+
+            // Calcul de la vitesse
+            if (car.gear !== 0 && car.clutch < 4) {
+                const clutchCoeff = 1 - (car.clutch / 4);
+                const drivingForce = (car.gas / 4) * clutchCoeff;
+
+                let targetSpeed;
+                if (car.gear > 0) {
+                    targetSpeed = drivingForce * car.maxSpeedByGear[car.gear];
+                } else {
+                    targetSpeed = -drivingForce * 20;
+                }
+
+                if (!car.handbrake) {
+                    const acceleration = (targetSpeed - car.speed) * dt * 2;
+                    car.speed += acceleration;
+                }
+            }
+
+            // Freinage
+            if (car.brake > 0) {
+                const braking = car.brake * 30 * dt;
+                if (car.speed > 0) {
+                    car.speed = Math.max(0, car.speed - braking);
+                } else if (car.speed < 0) {
+                    car.speed = Math.min(0, car.speed + braking);
+                }
+            }
+
+            // Frein à main
+            if (car.handbrake && Math.abs(car.speed) > 0) {
+                car.speed *= 0.95;
+                if (Math.abs(car.speed) < 0.5) car.speed = 0;
+            }
+
+            // Friction naturelle
+            if (car.gas === 0 && car.gear === 0) {
+                car.speed *= 0.99;
+            }
+
+            // Position sur la route
+            car.roadPosition += car.speed * dt * 10;
+
+            // Direction
+            if (Math.abs(car.speed) > 1) {
+                car.lateralPosition += car.direction * Math.abs(car.speed) * dt * 0.5;
+                car.lateralPosition = Math.max(-100, Math.min(100, car.lateralPosition));
+            }
+
+            checkTutorialProgress();
+        }
+
+        // === DESSIN ===
+        function drawScene() {
+            // Ciel
+            const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#E0F4FF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, 250);
+
+            // Soleil
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(100, 80, 40, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Nuages
+            const cloudOffset = (car.roadPosition * 0.1) % 400;
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 5; i++) {
+                const x = ((i * 300 - cloudOffset) % 1500 + 1500) % 1500 - 100;
+                drawCloud(x, 50 + (i % 3) * 30);
+            }
+
+            // Herbe
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, 200, canvas.width, 100);
+
+            // Arbres
+            const treeOffset = (car.roadPosition * 0.5) % 200;
+            for (let i = 0; i < 10; i++) {
+                const x = ((i * 200 - treeOffset) % 1600 + 1600) % 1600 - 100;
+                drawTree(x, 180);
+            }
+
+            // Route
+            drawRoad();
+        }
+
+        function drawCloud(x, y) {
+            ctx.beginPath();
+            ctx.ellipse(x + 30, y + 20, 40, 20, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + 60, y + 10, 30, 25, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + 90, y + 20, 35, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawTree(x, y) {
+            // Tronc
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(x + 15, y + 20, 20, 50);
+
+            // Feuillage
+            ctx.fillStyle = '#006400';
+            ctx.beginPath();
+            ctx.moveTo(x, y + 30);
+            ctx.lineTo(x + 25, y - 30);
+            ctx.lineTo(x + 50, y + 30);
+            ctx.fill();
+
+            ctx.fillStyle = '#008000';
+            ctx.beginPath();
+            ctx.moveTo(x + 5, y + 10);
+            ctx.lineTo(x + 25, y - 50);
+            ctx.lineTo(x + 45, y + 10);
+            ctx.fill();
+        }
+
+        function drawRoad() {
+            const latOffset = car.lateralPosition;
+
+            // Route en perspective
+            ctx.fillStyle = '#464646';
+            ctx.beginPath();
+            ctx.moveTo(400 + latOffset, 250);
+            ctx.lineTo(880 + latOffset, 250);
+            ctx.lineTo(canvas.width + 200, 400);
+            ctx.lineTo(-200, 400);
+            ctx.fill();
+
+            // Lignes blanches sur les côtés
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(400 + latOffset, 250);
+            ctx.lineTo(-200, 400);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(880 + latOffset, 250);
+            ctx.lineTo(canvas.width + 200, 400);
+            ctx.stroke();
+
+            // Ligne centrale pointillée
+            const lineOffset = (car.roadPosition % 60);
+            ctx.lineWidth = 4;
+            for (let i = 0; i < 15; i++) {
+                const y1 = 250 + i * 15 - lineOffset * 0.25;
+                const y2 = y1 + 10;
+                if (y1 < 250 || y2 > 400) continue;
+
+                const ratio = (y1 - 250) / 150;
+                const x = 640 + latOffset * (1 - ratio * 0.5);
+
+                ctx.beginPath();
+                ctx.moveTo(x, y1);
+                ctx.lineTo(x, Math.min(y2, 400));
+                ctx.stroke();
+            }
+        }
+
+        // === JAUGES ===
+        function drawSpeedGauge() {
+            const canvas = document.getElementById('speedGauge');
+            const ctx = canvas.getContext('2d');
+            const cx = 60, cy = 60, radius = 50;
+
+            ctx.clearRect(0, 0, 120, 120);
+
+            // Fond
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bordure
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Graduations
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            for (let i = 0; i <= 130; i += 20) {
+                const angle = (225 - i * 1.9) * Math.PI / 180;
+                const x1 = cx + Math.cos(angle) * 40;
+                const y1 = cy - Math.sin(angle) * 40;
+                const x2 = cx + Math.cos(angle) * 45;
+                const y2 = cy - Math.sin(angle) * 45;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                const tx = cx + Math.cos(angle) * 32;
+                const ty = cy - Math.sin(angle) * 32 + 3;
+                ctx.fillText(i, tx, ty);
+            }
+
+            // Aiguille
+            const speed = Math.max(0, Math.min(130, car.speed));
+            const needleAngle = (225 - speed * 1.9) * Math.PI / 180;
+            const nx = cx + Math.cos(needleAngle) * 35;
+            const ny = cy - Math.sin(needleAngle) * 35;
+
+            ctx.strokeStyle = '#f00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(nx, ny);
+            ctx.stroke();
+
+            // Centre
+            ctx.fillStyle = '#f00';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Texte
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.fillText('km/h', cx, cy + 20);
+        }
+
+        function drawRpmGauge() {
+            const canvas = document.getElementById('rpmGauge');
+            const ctx = canvas.getContext('2d');
+            const cx = 60, cy = 60, radius = 50;
+
+            ctx.clearRect(0, 0, 120, 120);
+
+            // Fond
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Zone rouge
+            ctx.strokeStyle = '#f00';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 42, (-45 - 45) * Math.PI / 180, -45 * Math.PI / 180);
+            ctx.stroke();
+
+            // Bordure
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Graduations
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            for (let i = 0; i <= 7; i++) {
+                const angle = (225 - i * 33.75) * Math.PI / 180;
+                const x1 = cx + Math.cos(angle) * 40;
+                const y1 = cy - Math.sin(angle) * 40;
+                const x2 = cx + Math.cos(angle) * 45;
+                const y2 = cy - Math.sin(angle) * 45;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                const tx = cx + Math.cos(angle) * 32;
+                const ty = cy - Math.sin(angle) * 32 + 3;
+                ctx.fillText(i, tx, ty);
+            }
+
+            // Aiguille
+            const rpm = Math.max(0, Math.min(7000, car.rpm));
+            const needleAngle = (225 - (rpm / 1000) * 33.75) * Math.PI / 180;
+            const nx = cx + Math.cos(needleAngle) * 35;
+            const ny = cy - Math.sin(needleAngle) * 35;
+
+            ctx.strokeStyle = '#f00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(nx, ny);
+            ctx.stroke();
+
+            // Centre
+            ctx.fillStyle = '#f00';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Texte
+            ctx.fillStyle = '#fff';
+            ctx.font = '8px Arial';
+            ctx.fillText('x1000 RPM', cx, cy + 20);
+        }
+
+        // === AFFICHAGE ===
+        function updateGearDisplay() {
+            const display = document.getElementById('gearDisplay');
+            if (car.gear === 0) display.textContent = 'N';
+            else if (car.gear === -1) display.textContent = 'R';
+            else display.textContent = car.gear;
+
+            display.style.color = car.engineOn ? '#4ad94a' : '#d94a4a';
+        }
+
+        function updateIndicators() {
+            document.getElementById('handbrake').className = 'indicator ' + (car.handbrake ? 'on' : 'off');
+            document.getElementById('engine').className = 'indicator ' + (car.engineOn ? 'on' : 'off');
+            document.getElementById('stalled').style.display = car.stalled ? 'block' : 'none';
+            updateGearDisplay();
+        }
+
+        function updatePedalDisplay() {
+            // Barres de remplissage
+            document.getElementById('clutchFill').style.height = (car.clutch * 25) + '%';
+            document.getElementById('brakeFill').style.height = (car.brake * 25) + '%';
+            document.getElementById('gasFill').style.height = (car.gas * 25) + '%';
+
+            // Touches embrayage
+            document.getElementById('keyA').className = 'key embrayage' + (car.clutch >= 1 ? ' active' : '');
+            document.getElementById('keyZ').className = 'key embrayage' + (car.clutch >= 2 ? ' active' : '');
+            document.getElementById('keyE').className = 'key embrayage' + (car.clutch >= 3 ? ' active' : '');
+            document.getElementById('keyR').className = 'key embrayage' + (car.clutch >= 4 ? ' active' : '');
+
+            // Touches frein
+            document.getElementById('keyQ').className = 'key frein' + (car.brake >= 1 ? ' active' : '');
+            document.getElementById('keyS').className = 'key frein' + (car.brake >= 2 ? ' active' : '');
+            document.getElementById('keyD').className = 'key frein' + (car.brake >= 3 ? ' active' : '');
+            document.getElementById('keyF').className = 'key frein' + (car.brake >= 4 ? ' active' : '');
+
+            // Touches accélérateur
+            document.getElementById('keyW').className = 'key accelerateur' + (car.gas >= 1 ? ' active' : '');
+            document.getElementById('keyX').className = 'key accelerateur' + (car.gas >= 2 ? ' active' : '');
+            document.getElementById('keyC').className = 'key accelerateur' + (car.gas >= 3 ? ' active' : '');
+            document.getElementById('keyV').className = 'key accelerateur' + (car.gas >= 4 ? ' active' : '');
+        }
+
+        // === TUTORIEL ===
+        function updateTutorial() {
+            const step = tutorialSteps[currentTutorialStep];
+            document.getElementById('tutorialTitle').textContent = step.title;
+            document.getElementById('tutorialContent').innerHTML = step.content;
+            document.getElementById('tutorialStep').textContent = `Étape ${currentTutorialStep + 1}/${tutorialSteps.length}`;
+        }
+
+        function nextTutorialStep() {
+            if (currentTutorialStep < tutorialSteps.length - 1) {
+                const currentCondition = tutorialSteps[currentTutorialStep].condition;
+                if (currentCondition()) {
+                    currentTutorialStep++;
+                    updateTutorial();
+                }
+            }
+        }
+
+        function checkTutorialProgress() {
+            if (currentTutorialStep >= 2 && currentTutorialStep < tutorialSteps.length - 1) {
+                if (tutorialSteps[currentTutorialStep].condition()) {
+                    currentTutorialStep++;
+                    updateTutorial();
+                }
+            }
+        }
+
+        function toggleTutorial() {
+            const tutorial = document.getElementById('tutorial');
+            tutorialVisible = !tutorialVisible;
+            tutorial.style.display = tutorialVisible ? 'block' : 'none';
+        }
+
+        // === BOUCLE PRINCIPALE ===
+        let lastTime = 0;
+
+        function gameLoop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            if (dt < 0.1) { // Éviter les gros sauts
+                updateCar(dt);
+            }
+
+            drawScene();
+            drawSpeedGauge();
+            drawRpmGauge();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // === INITIALISATION ===
+        updateIndicators();
+        updatePedalDisplay();
+        updateTutorial();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
